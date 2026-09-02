@@ -1,8 +1,8 @@
 apiVersion: v2
 name: cert-manager-webhook-allinkl
 description: cert-manager ACME DNS-01 solver webhook for All-Inkl (all-inkl.com)
-version: 0.2.0
-appVersion: 0.2.0
+version: 0.2.1
+appVersion: 0.2.1
 type: application
 keywords:
   - cert-manager

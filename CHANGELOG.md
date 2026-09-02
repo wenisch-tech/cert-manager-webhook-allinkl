@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## v0.2.1
+
+### [0.2.1](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.2.0...v0.2.1) (2026-09-02)
+
+
+### Reverts
+
+* drop Artifact Hub repository metadata from this repo ([5b4e3b7](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/commit/5b4e3b7e866b962d407d56d78516bcddf929fb54))
+
+
+
+
 ## v0.2.0
 
 ## [0.2.0](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.1.2...v0.2.0) (2026-09-02)
