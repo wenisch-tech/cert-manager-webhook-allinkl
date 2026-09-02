@@ -26,6 +26,10 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ include "cert-manager-webhook-allinkl.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}

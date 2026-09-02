@@ -23,6 +23,13 @@ image:
   repository: ghcr.io/wenisch-tech/cert-manager-webhook-allinkl
   tag: 0.0.3
   pullPolicy: IfNotPresent
+# Needed only while the GHCR package is private. Create the Secret in the
+# release namespace first:
+#   kubectl create secret docker-registry ghcr-pull -n cert-manager \
+#     --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT>
+# imagePullSecrets:
+#   - name: ghcr-pull
+imagePullSecrets: []
 replicaCount: 1
 # Ports below 1024 are unavailable to the non-root user this image runs as,
 # so the Service maps 443 onto securePort.
