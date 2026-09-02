@@ -47,6 +47,15 @@ this webhook needs — so they do not belong in a values file or in git.
    `KasAuthData` is its password. The webhook authenticates with
    `KasAuthType: plain` on each call and creates no sessions.
 
+> **The account must own the zone.** A KAS sub-account only sees the domains
+> assigned to it, and DNS records belong to whichever account holds the
+> domain. A fresh sub-account has none, so every call returns
+> `zone_not_found` — with valid credentials and an HTTP 200, which makes it
+> look like a bug in this webhook rather than a permissions problem. Check
+> with `get_domains` (below): if it comes back empty, that account cannot
+> solve challenges for your zone no matter what `zoneName` you set, and you
+> need the account the domain actually lives under.
+
 #### Verify before deploying
 
 This is exactly the call the webhook makes, so if it returns your zone the
@@ -69,9 +78,15 @@ curl -sS https://kasapi.kasserver.com/soap/KasApi.php \
 XML
 ```
 
-A `ReturnString` of `TRUE` plus a list of records means you are good. A
-`flood_protection` fault just means you called too fast — wait and retry; the
-webhook handles that case itself.
+A `ReturnString` of `TRUE` plus a list of records means you are good.
+
+Two faults are worth recognising:
+
+- `flood_protection` — you called too fast. Wait a few seconds and retry; the
+  webhook handles this itself, sleeping out the delay KAS reports.
+- `zone_not_found` — the credentials are *valid* but that account does not
+  hold the zone. Swap `get_dns_settings` for `get_domains` (empty
+  `KasRequestParams`) to see what the account can actually reach.
 
 #### Create the Secret
 
