@@ -21,7 +21,7 @@ certManager:
   serviceAccountName: cert-manager
 image:
   repository: ghcr.io/wenisch-tech/cert-manager-webhook-allinkl
-  tag: 0.1.2
+  tag: 0.2.0
   pullPolicy: IfNotPresent
 # Needed only while the GHCR package is private. Create the Secret in the
 # release namespace first:

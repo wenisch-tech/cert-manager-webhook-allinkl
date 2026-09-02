@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## v0.2.0
+
+## [0.2.0](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.1.2...v0.2.0) (2026-09-02)
+
+
+### Features
+
+* publish Artifact Hub repository metadata as an OCI artifact ([b849512](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/commit/b8495127c9f661f1bef5abd1899248916db8d5b9))
+
+
+
+
 ## v0.1.2
 
 ### [0.1.2](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.1.1...v0.1.2) (2026-09-02)
