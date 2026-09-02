@@ -1,0 +1,24 @@
+# Artifact Hub repository metadata.
+#
+# This file is NOT part of the chart. It is pushed to the OCI registry as a
+# separate artifact under the reserved tag `artifacthub.io`, which Artifact Hub
+# pulls when it needs repository metadata, looking for the
+# repository-metadata layer. See the Makefile target and the release workflow.
+#
+# Two independent features read it:
+#
+#   * Ownership claim  - needs only `owners`. The email must match the account
+#                        you sign in to Artifact Hub with, or the claim fails.
+#   * Verified publisher - needs `repositoryID`, which Artifact Hub only shows
+#                        you AFTER the repository is registered (control panel
+#                        -> Repositories -> the ID on the repository card).
+#
+# That ordering is why repositoryID is empty here: it cannot be known until the
+# repository exists on Artifact Hub. Fill it in, release again (or run
+# `make publish-artifacthub-metadata`), and the badge appears the next time
+# Artifact Hub processes the repository.
+repositoryID: ""
+
+owners:
+  - name: Jean-Fabian Wenisch
+    email: jean-fabian@wenisch.tech

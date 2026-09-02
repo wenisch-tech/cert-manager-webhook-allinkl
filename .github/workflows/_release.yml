@@ -140,6 +140,25 @@ jobs:
           helm push "release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz" oci://ghcr.io/wenisch-tech/helm-charts
           helm registry logout ghcr.io
 
+      - name: Set up oras
+        uses: oras-project/setup-oras@v1
+
+      # Artifact Hub reads repository metadata from a separate artifact under
+      # the reserved `artifacthub.io` tag in the same OCI repository as the
+      # chart -- it is not part of the chart itself, so `helm push` above does
+      # not carry it. Re-pushing on every release keeps it in step with
+      # artifacthub-repo.yml (notably once repositoryID is filled in).
+      - name: Publish Artifact Hub repository metadata
+        env:
+          GITHUBTOKEN: ${{ secrets.GITHUBTOKEN }}
+        run: |
+          set -euo pipefail
+          echo "${GITHUBTOKEN}" | oras login ghcr.io --username "${{ github.actor }}" --password-stdin
+          oras push ghcr.io/wenisch-tech/helm-charts/cert-manager-webhook-allinkl:artifacthub.io \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
+          oras logout ghcr.io
+
       - name: Create release notes file
         run: |
           cat > release-notes.md << 'NOTES'

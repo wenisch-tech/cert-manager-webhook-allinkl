@@ -217,4 +217,25 @@ not a gate for anything, because cert-manager deliberately keeps no
 approved-provider list (DNS providers were moved out-of-tree precisely so
 they would not have to).
 
+## Artifact Hub
+
+The chart is published as an OCI artifact, which Artifact Hub can index
+directly. The repository URL to register is the chart path, not the namespace:
+
+```
+oci://ghcr.io/wenisch-tech/helm-charts/cert-manager-webhook-allinkl
+```
+
+`artifacthub-repo.yml` in this repo drives both **ownership claim** (needs
+`owners`, whose email must match the Artifact Hub sign-in) and **verified
+publisher** (needs `repositoryID`). Artifact Hub only reveals that ID once the
+repository is registered, so the order is: register the repository, copy the
+ID into `artifacthub-repo.yml`, then release again — the release workflow
+pushes the file to the reserved `artifacthub.io` tag on every run. To push it
+without cutting a release:
+
+```bash
+oras login ghcr.io && make publish-artifacthub-metadata
+```
+
 Issues and PRs welcome.
