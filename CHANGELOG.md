@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## v0.1.2
+
+### [0.1.2](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.1.1...v0.1.2) (2026-09-02)
+
+
+### Documentation
+
+* correct status - verified end to end, conformance suite is not a listing gate ([a717d58](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/commit/a717d58e86f8ec2dd7d5385a2c254fad814781d6))
+
+
+
+
 ## v0.1.0
 
 ## [0.1.0](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.0.3...v0.1.0) (2026-09-02)
