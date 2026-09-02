@@ -1,5 +1,4 @@
 APP_NAME := cert-manager-webhook-allinkl
-CHART_OCI := ghcr.io/wenisch-tech/helm-charts/cert-manager-webhook-allinkl
 PKG := github.com/wenisch-tech/cert-manager-webhook-allinkl
 SRC_DIR := src
 VERSION ?= dev
@@ -8,7 +7,7 @@ BUILD_DATE ?= $(shell powershell -NoProfile -Command "(Get-Date).ToUniversalTime
 
 LDFLAGS := -X $(PKG)/internal/version.Version=$(VERSION) -X $(PKG)/internal/version.Commit=$(COMMIT) -X $(PKG)/internal/version.BuildDate=$(BUILD_DATE)
 
-.PHONY: build test fmt tidy vet lint-chart publish-artifacthub-metadata
+.PHONY: build test fmt tidy vet lint-chart
 
 build:
 	go -C $(SRC_DIR) build -ldflags "$(LDFLAGS)" -o ../bin/$(APP_NAME) ./cmd/$(APP_NAME)
@@ -27,11 +26,3 @@ tidy:
 
 lint-chart:
 	helm lint charts/$(APP_NAME)
-
-# Publishes artifacthub-repo.yml to the OCI registry under the reserved
-# `artifacthub.io` tag. Only needed out-of-band; the release workflow does this
-# on every release. Requires `oras` and a prior `oras login ghcr.io`.
-publish-artifacthub-metadata:
-	oras push $(CHART_OCI):artifacthub.io \
-	  --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
-	  artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
