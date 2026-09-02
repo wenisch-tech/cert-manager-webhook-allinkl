@@ -3,7 +3,6 @@
 # sensible default -- installing without setting it is a configuration error,
 # so the chart fails rather than guessing.
 groupName: ""
-
 # Name of the Secret holding the KAS API credentials. It must live in the
 # namespace cert-manager resolves issuer secrets from -- for a ClusterIssuer
 # that is cert-manager's --cluster-resource-namespace (the release namespace
@@ -16,33 +15,26 @@ credentials:
   secretName: allinkl-api-credentials
   userKey: user
   passwordKey: password
-
 # The cert-manager installation allowed to call this webhook.
 certManager:
   namespace: cert-manager
   serviceAccountName: cert-manager
-
 image:
   repository: ghcr.io/wenisch-tech/cert-manager-webhook-allinkl
-  tag: 0.0.1
+  tag: 0.0.2
   pullPolicy: IfNotPresent
-
 replicaCount: 1
-
 # Ports below 1024 are unavailable to the non-root user this image runs as,
 # so the Service maps 443 onto securePort.
 service:
   type: ClusterIP
   port: 443
 securePort: 8443
-
 logLevel: 2
-
 serviceAccount:
   create: true
   name: ""
   annotations: {}
-
 # Serving certificate for the aggregated API server. The aggregation layer
 # only speaks TLS, so the webhook needs a certificate before it can serve --
 # including to cert-manager itself. This selfSigned -> CA -> serving chain
@@ -54,7 +46,6 @@ pki:
   serving:
     duration: 8760h
     renewBefore: 720h
-
 resources:
   requests:
     cpu: 10m
@@ -62,19 +53,16 @@ resources:
   limits:
     cpu: 500m
     memory: 256Mi
-
 podSecurityContext:
   runAsNonRoot: true
   seccompProfile:
     type: RuntimeDefault
-
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
     drop:
       - ALL
-
 nodeSelector: {}
 affinity: {}
 tolerations: []
