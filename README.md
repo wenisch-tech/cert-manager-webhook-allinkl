@@ -15,9 +15,11 @@ existed. This fills that gap, which unlocks two things HTTP-01 cannot do:
 
 ## Install
 
+The chart is published as an OCI artifact, so there is no chart repo to add:
+
 ```bash
-helm repo add jfwenisch https://jfwenisch.github.io/charts
-helm install cert-manager-webhook-allinkl jfwenisch/cert-manager-webhook-allinkl \
+helm install cert-manager-webhook-allinkl \
+  oci://ghcr.io/wenisch-tech/helm-charts/cert-manager-webhook-allinkl \
   --namespace cert-manager \
   --set groupName=acme.example.com
 ```

@@ -13,3 +13,9 @@ keywords:
 home: https://github.com/wenisch-tech/cert-manager-webhook-allinkl
 sources:
   - https://github.com/wenisch-tech/cert-manager-webhook-allinkl
+annotations:
+  # GitHub links a GHCR package to a repository through this annotation, so
+  # pointing it at helm-charts is what makes the pushed chart show up under
+  # github.com/wenisch-tech/helm-charts. The chart's real origin stays
+  # discoverable through `sources:` above and in `helm show chart`.
+  org.opencontainers.image.source: https://github.com/wenisch-tech/helm-charts

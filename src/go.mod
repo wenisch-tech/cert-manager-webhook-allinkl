@@ -1,6 +1,6 @@
 module github.com/wenisch-tech/cert-manager-webhook-allinkl
 
-go 1.24
+go 1.27
 
 require (
 	github.com/cert-manager/cert-manager v1.16.2

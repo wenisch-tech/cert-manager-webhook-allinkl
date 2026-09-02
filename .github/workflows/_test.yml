@@ -20,7 +20,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: 1.26
+          go-version: 1.27
 
       - name: Tidy
         run: go mod tidy
@@ -41,9 +41,21 @@ jobs:
         uses: azure/setup-helm@v5
 
       # The chart is the deliverable for most consumers, so a broken template
-      # must fail CI rather than surface at install time.
+      # must fail CI rather than surface at install time. groupName has no
+      # default -- the chart refuses to render without one -- so every
+      # invocation here has to supply a placeholder.
       - name: Lint chart
-        run: helm lint charts/cert-manager-webhook-allinkl
+        run: helm lint charts/cert-manager-webhook-allinkl --set groupName=acme.example.com
 
       - name: Render chart
-        run: helm template cert-manager-webhook-allinkl charts/cert-manager-webhook-allinkl > /dev/null
+        run: helm template cert-manager-webhook-allinkl charts/cert-manager-webhook-allinkl --namespace cert-manager --set groupName=acme.example.com > /dev/null
+
+      # Guards the fail-fast itself: installing without groupName produces a
+      # webhook cert-manager can never reach, so it must be a hard error and
+      # not a default that silently renders.
+      - name: Chart must reject a missing groupName
+        run: |
+          if helm template cert-manager-webhook-allinkl charts/cert-manager-webhook-allinkl > /dev/null 2>&1; then
+            echo "chart rendered without groupName; the fail-fast guard is gone"
+            exit 1
+          fi

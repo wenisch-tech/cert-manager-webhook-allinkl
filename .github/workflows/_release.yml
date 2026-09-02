@@ -23,6 +23,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -119,20 +120,25 @@ jobs:
           cd release
           cosign sign-blob --yes cert-manager-webhook-allinkl-${{ inputs.version }}.tgz --bundle cert-manager-webhook-allinkl-${{ inputs.version }}.tgz.cosign.bundle
 
-      - name: Publish chart to jfwenisch/charts
+      # Published as an OCI artifact rather than into a git-hosted chart repo.
+      # The destination is the registry namespace, so the chart lands at
+      #   ghcr.io/wenisch-tech/helm-charts/cert-manager-webhook-allinkl:<version>
+      # -- `helm push` appends the chart name from Chart.yaml, it is not part
+      # of the URL. Chart.yaml's org.opencontainers.image.source annotation is
+      # what makes the resulting package appear under the helm-charts
+      # repository on GitHub.
+      #
+      # GITHUBTOKEN rather than the job's GITHUB_TOKEN: the latter is scoped
+      # to this repository and cannot create a package in another
+      # repository's namespace. GITHUBTOKEN must carry write:packages.
+      - name: Push Helm chart to GHCR as an OCI artifact
         env:
           GITHUBTOKEN: ${{ secrets.GITHUBTOKEN }}
         run: |
-          git clone "https://${GITHUBTOKEN}@github.com/jfwenisch/charts.git" charts-repo
-          mkdir -p charts-repo/cert-manager-webhook-allinkl
-          cp release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz charts-repo/cert-manager-webhook-allinkl/
-          cp release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz.cosign.bundle charts-repo/cert-manager-webhook-allinkl/ 2>/dev/null || true
-          cd charts-repo
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Add cert-manager-webhook-allinkl-${{ inputs.version }}" || echo "No chart changes to commit"
-          git push "https://${GITHUBTOKEN}@github.com/jfwenisch/charts.git" main
+          set -euo pipefail
+          echo "${GITHUBTOKEN}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+          helm push "release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz" oci://ghcr.io/wenisch-tech/helm-charts
+          helm registry logout ghcr.io
 
       - name: Create release notes file
         run: |
