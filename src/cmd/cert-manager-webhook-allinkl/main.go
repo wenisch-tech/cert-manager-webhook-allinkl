@@ -1,5 +1,5 @@
 // Command cert-manager-webhook-allinkl is a cert-manager ACME DNS-01 solver
-// for domains hosted at All-Inkl (kasserver.com).
+// for domains hosted at All-Inkl (all-inkl.com).
 //
 // cert-manager ships no in-tree provider for All-Inkl and no community
 // webhook existed, so this fills that gap: it runs as a Kubernetes aggregated

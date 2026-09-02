@@ -1,7 +1,7 @@
 # cert-manager-webhook-allinkl
 
 A [cert-manager](https://cert-manager.io) ACME **DNS-01 solver webhook** for
-domains hosted at **All-Inkl** ([kasserver.com](https://kasserver.com)), driving
+domains hosted at **All-Inkl** ([all-inkl.com](https://all-inkl.com/)), driving
 their KAS API.
 
 cert-manager ships no in-tree provider for All-Inkl, and no community webhook
@@ -30,10 +30,50 @@ chart refuses to render without it.
 
 ### Credentials
 
-The chart deliberately does not manage the Secret — these credentials control
-every DNS record in the All-Inkl account. Create a dedicated KAS API user in
-the All-Inkl panel rather than reusing your main login, so it can be revoked
-independently:
+The chart deliberately does not manage this Secret. KAS credentials control
+every DNS record, mailbox and database in the All-Inkl account — far more than
+this webhook needs — so they do not belong in a values file or in git.
+
+#### Getting them
+
+1. Sign in to KAS at [kas.all-inkl.com](https://kas.all-inkl.com).
+2. Enable the API under **Tools -> API** and set an API password there. The
+   same page restricts which source IPs may call the API; if you use it, the
+   allowed address is your cluster's outbound NAT address, not a pod IP.
+3. Prefer a **sub-account** (KAS: *Unteraccount*) over the main login, so the
+   credential can be revoked on its own without locking you out of hosting.
+   The sub-account must be able to manage DNS for the zone you will certify.
+4. `KasUser` is that KAS login (the main account looks like `wXXXXXXX`);
+   `KasAuthData` is its password. The webhook authenticates with
+   `KasAuthType: plain` on each call and creates no sessions.
+
+#### Verify before deploying
+
+This is exactly the call the webhook makes, so if it returns your zone the
+credentials and permissions are right. Doing this first turns a silent
+"challenge stuck pending" into an immediate, readable answer:
+
+```bash
+curl -sS https://kasapi.kasserver.com/soap/KasApi.php \
+  -H 'Content-Type: text/xml; charset=utf-8' \
+  -H 'SOAPAction: urn:xmethodsKasApi#KasApi' \
+  --data-binary @- <<'XML' | head -40
+<?xml version="1.0" encoding="utf-8"?>
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap-env:Body>
+    <ns0:KasApi xmlns:ns0="urn:xmethodsKasApi">
+      <Params>{"KasUser":"wXXXXXXX","KasAuthType":"plain","KasAuthData":"YOUR_PASSWORD","KasRequestType":"get_dns_settings","KasRequestParams":{"zone_host":"example.com."}}</Params>
+    </ns0:KasApi>
+  </soap-env:Body>
+</soap-env:Envelope>
+XML
+```
+
+A `ReturnString` of `TRUE` plus a list of records means you are good. A
+`flood_protection` fault just means you called too fast — wait and retry; the
+webhook handles that case itself.
+
+#### Create the Secret
 
 ```bash
 kubectl create secret generic allinkl-api-credentials \
@@ -43,7 +83,9 @@ kubectl create secret generic allinkl-api-credentials \
 ```
 
 For a `ClusterIssuer`, the Secret must live in cert-manager's
-`--cluster-resource-namespace` (`cert-manager` by default).
+`--cluster-resource-namespace` (`cert-manager` by default). The chart's Role
+grants access to exactly this Secret name, so keep the name or set
+`credentials.secretName` to match.
 
 ### Issuer
 

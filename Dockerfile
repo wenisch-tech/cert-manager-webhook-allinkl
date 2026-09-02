@@ -21,7 +21,7 @@ ARG BUILD_DATE=unknown
 ARG BUILD_REVISION=none
 
 LABEL org.opencontainers.image.title="cert-manager-webhook-allinkl" \
-      org.opencontainers.image.description="cert-manager ACME DNS-01 solver for All-Inkl (kasserver.com)" \
+      org.opencontainers.image.description="cert-manager ACME DNS-01 solver for All-Inkl (all-inkl.com)" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${BUILD_REVISION}" \

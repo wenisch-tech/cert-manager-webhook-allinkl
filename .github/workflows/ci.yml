@@ -10,11 +10,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Computes the next version WITHOUT creating anything: dry_run is hardcoded
+  # true here. A tag is a permanent, public marker, so it is only written once
+  # the artifacts it names are known to build -- see the `tag` job below.
   versioning:
     runs-on: ubuntu-latest
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     permissions:
-      contents: write
+      contents: read
     outputs:
       new_tag: ${{ steps.bump.outputs.new_tag }}
       new_version: ${{ steps.vars.outputs.new_version }}
@@ -26,14 +29,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bump version and generate changelog
+      - name: Compute next version and changelog
         id: bump
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ github.token }}
           release_branches: main
           default_bump: patch
-          dry_run: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+          dry_run: true
 
       - name: Compute version variables
         id: vars
@@ -72,12 +75,44 @@ jobs:
       version: ${{ needs.versioning.outputs.new_version }}
       image: ${{ needs.versioning.outputs.image }}
 
+  # Creates the tag only after tests, binaries and the image have all
+  # succeeded, so a tag never names a build that does not exist. The version
+  # is recomputed rather than passed in: the action is the single source of
+  # truth for it, and no commits can have landed in between on this ref.
+  tag:
+    needs:
+      - versioning
+      - test
+      - build
+      - docker
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create tag
+        id: bump
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ github.token }}
+          release_branches: main
+          default_bump: patch
+          dry_run: false
+
   release:
     needs:
       - versioning
       - test
       - build
       - docker
+      - tag
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: write
@@ -87,7 +122,7 @@ jobs:
     uses: ./.github/workflows/_release.yml
     with:
       version: ${{ needs.versioning.outputs.new_version }}
-      tag: ${{ needs.versioning.outputs.new_tag }}
+      tag: ${{ needs.tag.outputs.new_tag }}
       changelog: ${{ needs.versioning.outputs.changelog }}
       image: ${{ needs.versioning.outputs.image }}
     secrets: inherit
