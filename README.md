@@ -201,8 +201,20 @@ fiddly parts — are pinned by unit tests.
 
 ## Status
 
-Written for a homelab and used in production there. It has **not** yet been
-run against cert-manager's DNS01 conformance suite, which upstream requires
-before listing a webhook; that needs a real zone and credentials in CI.
+Runs in production in the homelab it was written for, and is verified end to
+end against the real KAS API and Let's Encrypt staging: cert-manager calls the
+webhook, the `_acme-challenge` TXT record lands in the zone, Let's Encrypt
+validates it, a certificate is issued, and `CleanUp` removes the record again.
+Flood protection was hit repeatedly during that run and handled by the
+client's backoff.
+
+What has **not** been run is cert-manager's [DNS01 conformance
+suite](https://github.com/cert-manager/webhook-example) — the upstream
+harness that drives `Present`/`CleanUp` directly and asserts the result with
+its own DNS queries, rather than going through ACME. It needs a real zone plus
+credentials available to CI. Upstream recommends every webhook pass it; it is
+not a gate for anything, because cert-manager deliberately keeps no
+approved-provider list (DNS providers were moved out-of-tree precisely so
+they would not have to).
 
 Issues and PRs welcome.
