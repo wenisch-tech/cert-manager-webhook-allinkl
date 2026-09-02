@@ -1,0 +1,35 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed into namespace {{ .Release.Namespace }}.
+
+API group: {{ .Values.groupName }}
+Solver name: allinkl
+
+1. Create the KAS credentials Secret (the chart does not manage it):
+
+   kubectl create secret generic {{ .Values.credentials.secretName }} \
+     -n {{ .Release.Namespace }} \
+     --from-literal={{ .Values.credentials.userKey }}='<KAS_USER>' \
+     --from-literal={{ .Values.credentials.passwordKey }}='<KAS_PASSWORD>'
+
+2. Confirm the aggregated API is reachable -- this is the single best health
+   signal, since it proves the aggregation layer can reach and trust the pod:
+
+   kubectl get apiservice v1alpha1.{{ .Values.groupName }}
+
+3. Reference the solver from an Issuer or ClusterIssuer:
+
+   solvers:
+     - dns01:
+         webhook:
+           groupName: {{ .Values.groupName }}
+           solverName: allinkl
+           config:
+             zoneName: example.com.
+             userSecretRef:
+               name: {{ .Values.credentials.secretName }}
+               key: {{ .Values.credentials.userKey }}
+             passwordSecretRef:
+               name: {{ .Values.credentials.secretName }}
+               key: {{ .Values.credentials.passwordKey }}
+
+Test against Let's Encrypt STAGING first -- production rate limits are hard
+and account-wide.

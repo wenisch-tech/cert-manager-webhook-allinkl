@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+      changelog:
+        required: true
+        type: string
+      image:
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      - name: Setup yq
+        uses: mikefarah/yq@v4.53.3
+
+      - name: Download binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: release
+          pattern: cert-manager-webhook-allinkl-*
+          merge-multiple: true
+
+      - name: Flatten release files
+        run: |
+          find release -type f -name 'cert-manager-webhook-allinkl-*' -exec cp {} release/ \;
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum cert-manager-webhook-allinkl-linux-* > SHA256SUMS
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./
+          output-file: release/cert-manager-webhook-allinkl-${{ inputs.version }}-sbom.spdx.json
+          format: spdx-json
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign binaries
+        run: |
+          cd release
+          for f in cert-manager-webhook-allinkl-linux-*; do
+            cosign sign-blob --yes "$f" --bundle "$f.cosign.bundle"
+          done
+
+      - name: Update chart versions
+        run: |
+          yq -i '.version = "${{ inputs.version }}"' charts/cert-manager-webhook-allinkl/Chart.yaml
+          yq -i '.appVersion = "${{ inputs.version }}"' charts/cert-manager-webhook-allinkl/Chart.yaml
+          yq -i '.image.tag = "${{ inputs.version }}"' charts/cert-manager-webhook-allinkl/values.yaml
+
+      - name: Update version.go
+        run: |
+          set -euo pipefail
+          {
+            printf 'package version\n\n'
+            printf 'var (\n'
+            printf '\tVersion   = "%s"\n' "${{ inputs.version }}"
+            printf '\tCommit    = "%s"\n' "${GITHUB_SHA}"
+            printf '\tBuildDate = "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf ')\n'
+          } > src/internal/version/version.go
+
+      - name: Update CHANGELOG.md
+        env:
+          CHANGELOG: ${{ inputs.changelog }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          header=$(head -n 3 CHANGELOG.md)
+          rest=$(tail -n +4 CHANGELOG.md)
+          {
+            printf '%s\n\n' "$header"
+            printf '## %s\n\n' "$TAG"
+            printf '%s\n\n' "$CHANGELOG"
+            printf '%s\n' "$rest"
+          } > CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Commit release files
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md charts/cert-manager-webhook-allinkl/Chart.yaml charts/cert-manager-webhook-allinkl/values.yaml src/internal/version/version.go
+          git commit -m "chore(release): ${{ inputs.tag }} [skip ci]" || exit 0
+          git push
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p release
+          helm package charts/cert-manager-webhook-allinkl --destination release
+
+      - name: Sign Helm chart
+        run: |
+          cd release
+          cosign sign-blob --yes cert-manager-webhook-allinkl-${{ inputs.version }}.tgz --bundle cert-manager-webhook-allinkl-${{ inputs.version }}.tgz.cosign.bundle
+
+      - name: Publish chart to jfwenisch/charts
+        env:
+          GITHUBTOKEN: ${{ secrets.GITHUBTOKEN }}
+        run: |
+          git clone "https://${GITHUBTOKEN}@github.com/jfwenisch/charts.git" charts-repo
+          mkdir -p charts-repo/cert-manager-webhook-allinkl
+          cp release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz charts-repo/cert-manager-webhook-allinkl/
+          cp release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz.cosign.bundle charts-repo/cert-manager-webhook-allinkl/ 2>/dev/null || true
+          cd charts-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Add cert-manager-webhook-allinkl-${{ inputs.version }}" || echo "No chart changes to commit"
+          git push "https://${GITHUBTOKEN}@github.com/jfwenisch/charts.git" main
+
+      - name: Create release notes file
+        run: |
+          cat > release-notes.md << 'NOTES'
+          ## Container image
+          ${{ inputs.image }}:${{ inputs.version }}
+
+          ## Verify checksums
+          ```bash
+          sha256sum -c SHA256SUMS
+          ```
+
+          ## Changelog
+          ${{ inputs.changelog }}
+          NOTES
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Release ${{ inputs.tag }}
+          body_path: release-notes.md
+          files: |
+            release/cert-manager-webhook-allinkl-linux-amd64
+            release/cert-manager-webhook-allinkl-linux-arm64
+            release/SHA256SUMS
+            release/cert-manager-webhook-allinkl-${{ inputs.version }}-sbom.spdx.json
+            release/cert-manager-webhook-allinkl-linux-amd64.cosign.bundle
+            release/cert-manager-webhook-allinkl-linux-arm64.cosign.bundle
+            release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz
+            release/cert-manager-webhook-allinkl-${{ inputs.version }}.tgz.cosign.bundle

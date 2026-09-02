@@ -1,0 +1,69 @@
+name: Docker
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      image:
+        required: true
+        type: string
+    outputs:
+      image_digest:
+        value: ${{ jobs.docker.outputs.image_digest }}
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Needed for the linux/arm64 leg: this image cross-compiles via Go, but
+      # the chainguard base is pulled per-arch.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push multi-arch image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ inputs.image }}:${{ inputs.version }}
+            ${{ inputs.image }}:latest
+            ${{ inputs.image }}:sha-${{ github.sha }}
+          build-args: |
+            VERSION=${{ inputs.version }}
+            BUILD_DATE=${{ github.run_id }}
+            BUILD_REVISION=${{ github.sha }}
+
+      - name: Attest image provenance
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ inputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

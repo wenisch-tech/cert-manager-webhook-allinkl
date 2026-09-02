@@ -1,0 +1,15 @@
+apiVersion: v2
+name: cert-manager-webhook-allinkl
+description: cert-manager ACME DNS-01 solver webhook for All-Inkl (kasserver.com)
+version: 0.0.1
+appVersion: 0.0.1
+type: application
+keywords:
+  - cert-manager
+  - acme
+  - dns01
+  - all-inkl
+  - kasserver
+home: https://github.com/wenisch-tech/cert-manager-webhook-allinkl
+sources:
+  - https://github.com/wenisch-tech/cert-manager-webhook-allinkl

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+jobs:
+  versioning:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+      new_version: ${{ steps.vars.outputs.new_version }}
+      changelog: ${{ steps.bump.outputs.changelog }}
+      image: ghcr.io/wenisch-tech/cert-manager-webhook-allinkl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and generate changelog
+        id: bump
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ github.token }}
+          release_branches: main
+          default_bump: patch
+          dry_run: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+
+      - name: Compute version variables
+        id: vars
+        run: |
+          if [ -n "${{ steps.bump.outputs.new_tag }}" ]; then
+            echo "new_version=${{ steps.bump.outputs.new_tag }}" | sed 's/^new_version=v/new_version=/' >> "$GITHUB_OUTPUT"
+          else
+            echo "new_version=0.0.1" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: versioning
+    uses: ./.github/workflows/_test.yml
+    with:
+      version: ${{ needs.versioning.outputs.new_version }}
+
+  build:
+    needs: versioning
+    uses: ./.github/workflows/_build.yml
+    with:
+      version: ${{ needs.versioning.outputs.new_version }}
+
+  docker:
+    needs:
+      - versioning
+      - test
+      - build
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/_docker.yml
+    with:
+      version: ${{ needs.versioning.outputs.new_version }}
+      image: ${{ needs.versioning.outputs.image }}
+
+  release:
+    needs:
+      - versioning
+      - test
+      - build
+      - docker
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/_release.yml
+    with:
+      version: ${{ needs.versioning.outputs.new_version }}
+      tag: ${{ needs.versioning.outputs.new_tag }}
+      changelog: ${{ needs.versioning.outputs.changelog }}
+      image: ${{ needs.versioning.outputs.image }}
+    secrets: inherit

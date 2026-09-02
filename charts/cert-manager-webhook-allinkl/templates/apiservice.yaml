@@ -1,0 +1,19 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.{{ .Values.groupName }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+  annotations:
+    # cainjector fills spec.caBundle from the serving Certificate's Secret.
+    # Anything reconciling this object (Argo CD, Flux) must be told to ignore
+    # that field, or it will fight the injection forever.
+    cert-manager.io/inject-ca-from: "{{ .Release.Namespace }}/{{ include "cert-manager-webhook-allinkl.servingCertificate" . }}"
+spec:
+  group: {{ .Values.groupName }}
+  version: v1alpha1
+  service:
+    name: {{ include "cert-manager-webhook-allinkl.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+  groupPriorityMinimum: 1000
+  versionPriority: 15

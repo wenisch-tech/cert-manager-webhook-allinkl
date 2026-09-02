@@ -1,0 +1,83 @@
+# The API group this webhook serves. It must be a domain you control, and it
+# must match the `groupName` in the issuer's dns01.webhook block. There is no
+# sensible default -- installing without setting it is a configuration error,
+# so the chart fails rather than guessing.
+groupName: ""
+
+# Name of the Secret holding the KAS API credentials. It must live in the
+# namespace cert-manager resolves issuer secrets from -- for a ClusterIssuer
+# that is cert-manager's --cluster-resource-namespace (the release namespace
+# by default). The chart does not create it: these credentials control every
+# DNS record in the All-Inkl account and do not belong in values.
+#
+#   kubectl create secret generic allinkl-api-credentials \
+#     -n cert-manager --from-literal=user=... --from-literal=password=...
+credentials:
+  secretName: allinkl-api-credentials
+  userKey: user
+  passwordKey: password
+
+# The cert-manager installation allowed to call this webhook.
+certManager:
+  namespace: cert-manager
+  serviceAccountName: cert-manager
+
+image:
+  repository: ghcr.io/wenisch-tech/cert-manager-webhook-allinkl
+  tag: 0.0.1
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Ports below 1024 are unavailable to the non-root user this image runs as,
+# so the Service maps 443 onto securePort.
+service:
+  type: ClusterIP
+  port: 443
+securePort: 8443
+
+logLevel: 2
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Serving certificate for the aggregated API server. The aggregation layer
+# only speaks TLS, so the webhook needs a certificate before it can serve --
+# including to cert-manager itself. This selfSigned -> CA -> serving chain
+# resolves that, and cainjector copies the CA into the APIService's caBundle.
+pki:
+  ca:
+    duration: 43800h
+    renewBefore: 8760h
+  serving:
+    duration: 8760h
+    renewBefore: 720h
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+podAnnotations: {}
+podLabels: {}
+priorityClassName: ""

@@ -1,0 +1,54 @@
+name: Build Binaries
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux only: this binary is a Kubernetes aggregated API server and
+          # has no meaningful use outside a cluster.
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: 1.26
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          mkdir -p ../dist
+          NAME="cert-manager-webhook-allinkl-${GOOS}-${GOARCH}"
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -ldflags "-s -w -X github.com/wenisch-tech/cert-manager-webhook-allinkl/internal/version.Version=${VERSION} -X github.com/wenisch-tech/cert-manager-webhook-allinkl/internal/version.Commit=${GITHUB_SHA} -X github.com/wenisch-tech/cert-manager-webhook-allinkl/internal/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "../dist/${NAME}" ./cmd/cert-manager-webhook-allinkl
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: cert-manager-webhook-allinkl-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/cert-manager-webhook-allinkl-${{ matrix.goos }}-${{ matrix.goarch }}
+          if-no-files-found: error

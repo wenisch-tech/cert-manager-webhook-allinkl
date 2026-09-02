@@ -1,0 +1,137 @@
+{{- if .Values.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+{{- end }}
+# A cert-manager webhook is a Kubernetes aggregated API server, which is why
+# this file is longer than a Deployment's RBAC would normally be. Auth
+# delegation, the kube-system authentication-reader binding and flowcontrol
+# reads are all required of any extension API server -- without the last one
+# the embedded apiserver logs permission errors and never becomes ready.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:auth-delegator
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cert-manager-webhook-allinkl.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:extension-apiserver-authentication-reader
+  namespace: kube-system
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cert-manager-webhook-allinkl.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:flowcontrol
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["flowcontrol.apiserver.k8s.io"]
+    resources: ["prioritylevelconfigurations", "flowschemas"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:flowcontrol
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:flowcontrol
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cert-manager-webhook-allinkl.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# The real authorisation gate: only cert-manager may ask this webhook to solve
+# a challenge. Deleting this binding disables ACME issuance through it without
+# touching the Deployment.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:domain-solver
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - {{ .Values.groupName | quote }}
+    resources: ["*"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:domain-solver
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:domain-solver
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.certManager.serviceAccountName }}
+    namespace: {{ .Values.certManager.namespace }}
+---
+# Scoped to the one Secret by name rather than the whole namespace: this pod
+# holds credentials for every DNS record in the All-Inkl account.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:credentials
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - {{ .Values.credentials.secretName | quote }}
+    verbs: ["get", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:credentials
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "cert-manager-webhook-allinkl.fullname" . }}:credentials
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cert-manager-webhook-allinkl.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}

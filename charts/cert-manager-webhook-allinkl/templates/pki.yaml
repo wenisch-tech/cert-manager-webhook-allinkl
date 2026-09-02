@@ -1,0 +1,70 @@
+# Serving TLS for the aggregated API server.
+#
+# The aggregation layer only speaks TLS, so the webhook must present a
+# certificate before it can serve anything -- including to cert-manager, which
+# is the chicken-and-egg this selfSigned -> CA -> serving chain resolves.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.selfSignedIssuer" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.rootCACertificate" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "cert-manager-webhook-allinkl.rootCACertificate" . }}
+  isCA: true
+  commonName: {{ include "cert-manager-webhook-allinkl.rootCACertificate" . }}
+  duration: {{ .Values.pki.ca.duration }}
+  renewBefore: {{ .Values.pki.ca.renewBefore }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: {{ include "cert-manager-webhook-allinkl.selfSignedIssuer" . }}
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.rootCAIssuer" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "cert-manager-webhook-allinkl.rootCACertificate" . }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "cert-manager-webhook-allinkl.servingCertificate" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager-webhook-allinkl.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "cert-manager-webhook-allinkl.servingCertificate" . }}
+  duration: {{ .Values.pki.serving.duration }}
+  renewBefore: {{ .Values.pki.serving.renewBefore }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  dnsNames:
+    - {{ include "cert-manager-webhook-allinkl.fullname" . }}
+    - {{ include "cert-manager-webhook-allinkl.fullname" . }}.{{ .Release.Namespace }}
+    - {{ include "cert-manager-webhook-allinkl.fullname" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "cert-manager-webhook-allinkl.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ include "cert-manager-webhook-allinkl.rootCAIssuer" . }}
+    kind: Issuer
+    group: cert-manager.io

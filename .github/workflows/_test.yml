@@ -1,0 +1,49 @@
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: 1.26
+
+      - name: Tidy
+        run: go mod tidy
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run go test
+        run: go test ./... -v
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      # The chart is the deliverable for most consumers, so a broken template
+      # must fail CI rather than surface at install time.
+      - name: Lint chart
+        run: helm lint charts/cert-manager-webhook-allinkl
+
+      - name: Render chart
+        run: helm template cert-manager-webhook-allinkl charts/cert-manager-webhook-allinkl > /dev/null
