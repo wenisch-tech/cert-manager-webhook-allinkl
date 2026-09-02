@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## v0.1.0
+
+## [0.1.0](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.0.3...v0.1.0) (2026-09-02)
+
+
+### Features
+
+* support imagePullSecrets for private registries ([5c6cc2f](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/commit/5c6cc2fc48e82fbbca71d7dccf5fb0d6917e402f))
+
+
+### Code Refactoring
+
+* tag before the image build (build -> tag -> docker -> release) ([98451fd](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/commit/98451fdad8a093f1a760baf91d9899a7eefb1594))
+
+
+
+
 ## v0.0.3
 
 ### [0.0.3](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.0.2...v0.0.3) (2026-09-02)
