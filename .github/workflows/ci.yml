@@ -59,12 +59,22 @@ jobs:
     with:
       version: ${{ needs.versioning.outputs.new_version }}
 
+  # Gated behind `tag` so the image is built from an already-tagged commit.
+  # The explicit result checks exist because `tag` is main-only: without them
+  # a skipped `tag` would cascade and skip the image build on every branch and
+  # Renovate PR, which is where a broken Dockerfile would otherwise hide.
   docker:
     needs:
       - versioning
       - test
       - build
-    if: ${{ github.event_name == 'push' }}
+      - tag
+    if: >-
+      ${{ !cancelled()
+          && github.event_name == 'push'
+          && needs.test.result == 'success'
+          && needs.build.result == 'success'
+          && (needs.tag.result == 'success' || needs.tag.result == 'skipped') }}
     permissions:
       contents: read
       packages: write
@@ -75,8 +85,8 @@ jobs:
       version: ${{ needs.versioning.outputs.new_version }}
       image: ${{ needs.versioning.outputs.image }}
 
-  # Creates the tag only after tests, binaries and the image have all
-  # succeeded, so a tag never names a build that does not exist. The version
+  # Created once tests and binaries pass, before the image is built, so the
+  # image is produced from a commit that already carries its tag. The version
   # is recomputed rather than passed in: the action is the single source of
   # truth for it, and no commits can have landed in between on this ref.
   tag:
@@ -84,7 +94,6 @@ jobs:
       - versioning
       - test
       - build
-      - docker
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
@@ -111,8 +120,8 @@ jobs:
       - versioning
       - test
       - build
-      - docker
       - tag
+      - docker
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: write
