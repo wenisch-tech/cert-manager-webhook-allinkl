@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## v0.2.4
+
+### [0.2.4](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.2.3...v0.2.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/cert-manager/cert-manager to v1.21.3 ([7cb96c3](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/commit/7cb96c35cb97abaa759ec2d3c8d6adccaaeb0895))
+
+
+
+
 ## v0.2.3
 
 ### [0.2.2](https://github.com/wenisch-tech/cert-manager-webhook-allinkl/compare/v0.2.1...v0.2.2) (2026-10-05)
